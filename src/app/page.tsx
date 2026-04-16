@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { guardarMovimientoAction } from "@/app/actions";
+import { actualizarProductoAction, guardarMovimientoAction } from "@/app/actions";
 import { AppShell } from "@/components/AppShell";
 import { getSupabaseServerClient } from "@/lib/supabaseServer";
 import type { Producto } from "@/lib/types";
@@ -17,7 +17,7 @@ export default async function InventarioPage({ searchParams }: Props) {
 
   const { data } = await supabase
     .from("products")
-    .select("id, name, image_url, quantity, created_at")
+    .select("id, name, code, image_url, quantity, created_at")
     .order("created_at", { ascending: false });
 
   const productos = (data || []) as Producto[];
@@ -63,10 +63,66 @@ export default async function InventarioPage({ searchParams }: Props) {
                         {producto.name}
                       </h2>
                       <p className="text-sm text-[var(--muted)]">
+                        Codigo: <span className="font-semibold">{producto.code}</span>
+                      </p>
+                      <p className="text-sm text-[var(--muted)]">
                         Cantidad actual: <span className="font-semibold">{producto.quantity}</span>
                       </p>
                     </div>
                   </summary>
+
+                  <div className="border-t border-[#e5ece9] p-4">
+                    <details>
+                      <summary className="inline-flex cursor-pointer rounded-full border border-[var(--border)] px-3 py-1 text-xs font-semibold text-[var(--foreground)]">
+                        Editar datos
+                      </summary>
+                      <form action={actualizarProductoAction} className="mt-3 space-y-3">
+                        <input name="product_id" type="hidden" value={producto.id} />
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="label" htmlFor={`name-${producto.id}`}>
+                              Nombre
+                            </label>
+                            <input
+                              className="field"
+                              defaultValue={producto.name}
+                              id={`name-${producto.id}`}
+                              name="name"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="label" htmlFor={`code-${producto.id}`}>
+                              Codigo
+                            </label>
+                            <input
+                              className="field"
+                              defaultValue={producto.code}
+                              id={`code-${producto.id}`}
+                              name="code"
+                              required
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="label" htmlFor={`image-${producto.id}`}>
+                            Imagen (opcional)
+                          </label>
+                          <input
+                            accept="image/*"
+                            capture="environment"
+                            className="field"
+                            id={`image-${producto.id}`}
+                            name="image"
+                            type="file"
+                          />
+                        </div>
+                        <button className="btn-secondary" type="submit">
+                          Guardar datos
+                        </button>
+                      </form>
+                    </details>
+                  </div>
 
                   <form action={guardarMovimientoAction} className="space-y-3 border-t border-[#e5ece9] p-4">
                     <input name="product_id" type="hidden" value={producto.id} />

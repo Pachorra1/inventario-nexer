@@ -15,10 +15,11 @@ function getInt(formData: FormData, key: string) {
 
 export async function agregarProductoAction(formData: FormData) {
   const name = getText(formData, "name");
+  const code = getText(formData, "code");
   const quantity = getInt(formData, "quantity");
   const file = formData.get("image");
 
-  if (!name || Number.isNaN(quantity) || quantity < 0) {
+  if (!name || !code || Number.isNaN(quantity) || quantity < 0) {
     redirect("/agregar-producto?error=Datos+invalidos");
   }
 
@@ -49,7 +50,7 @@ export async function agregarProductoAction(formData: FormData) {
 
   const insertResult = await supabase
     .from("products")
-    .insert({ name, image_url: imageUrl, quantity });
+    .insert({ name, code, image_url: imageUrl, quantity });
 
   if (insertResult.error) {
     await supabase.storage.from(bucket).remove([path]);
@@ -118,4 +119,57 @@ export async function guardarMovimientoAction(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/historial");
   redirect("/?ok=Movimiento+guardado");
+}
+
+export async function actualizarProductoAction(formData: FormData) {
+  const productId = getText(formData, "product_id");
+  const name = getText(formData, "name");
+  const code = getText(formData, "code");
+  const file = formData.get("image");
+
+  if (!productId || !name || !code) {
+    redirect("/?error=Completa+nombre+y+codigo");
+  }
+
+  const supabase = getSupabaseServerClient();
+  const bucket = getStorageBucket();
+  let imageUrl: string | null = null;
+
+  if (file instanceof File && file.size > 0) {
+    const extension = file.name.includes(".")
+      ? file.name.split(".").pop()
+      : file.type.split("/").pop() || "jpg";
+    const safeExt = (extension || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const path = `${crypto.randomUUID()}.${safeExt || "jpg"}`;
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+
+    const uploadResult = await supabase.storage.from(bucket).upload(path, fileBuffer, {
+      contentType: file.type || "application/octet-stream",
+      upsert: false,
+    });
+
+    if (uploadResult.error) {
+      redirect("/?error=No+se+pudo+subir+la+nueva+imagen");
+    }
+
+    imageUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+  }
+
+  const updatePayload: { name: string; code: string; image_url?: string } = { name, code };
+  if (imageUrl) {
+    updatePayload.image_url = imageUrl;
+  }
+
+  const updateResult = await supabase
+    .from("products")
+    .update(updatePayload)
+    .eq("id", productId);
+
+  if (updateResult.error) {
+    redirect("/?error=No+se+pudo+actualizar+el+producto");
+  }
+
+  revalidatePath("/");
+  revalidatePath("/historial");
+  redirect("/?ok=Producto+actualizado");
 }

@@ -3,10 +3,15 @@ create extension if not exists "pgcrypto";
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  code text not null,
   image_url text,
   quantity integer not null default 0 check (quantity >= 0),
   created_at timestamptz not null default now()
 );
+
+alter table public.products add column if not exists code text;
+update public.products set code = id::text where code is null or btrim(code) = '';
+alter table public.products alter column code set not null;
 
 create table if not exists public.movements (
   id uuid primary key default gen_random_uuid(),

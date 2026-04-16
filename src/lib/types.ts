@@ -1,6 +1,7 @@
 export type Producto = {
   id: string;
   name: string;
+  code: string;
   image_url: string | null;
   quantity: number;
   created_at: string;

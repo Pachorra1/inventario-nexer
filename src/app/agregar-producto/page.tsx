@@ -31,6 +31,12 @@ export default async function AgregarProductoPage({ searchParams }: Props) {
             <input className="field" id="name" name="name" required />
           </div>
           <div>
+            <label className="label" htmlFor="code">
+              Codigo
+            </label>
+            <input className="field" id="code" name="code" required />
+          </div>
+          <div>
             <label className="label" htmlFor="image">
               Imagen
             </label>

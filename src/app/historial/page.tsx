@@ -21,7 +21,10 @@ export default async function HistorialPage({ searchParams }: Props) {
   const supabase = getSupabaseServerClient();
 
   const [{ data: productsData }, movementsResponse] = await Promise.all([
-    supabase.from("products").select("id, name, image_url, quantity, created_at").order("name"),
+    supabase
+      .from("products")
+      .select("id, name, code, image_url, quantity, created_at")
+      .order("name"),
     (selectedProduct
       ? supabase
           .from("movements")
