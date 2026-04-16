@@ -110,7 +110,6 @@ export default async function InventarioPage({ searchParams }: Props) {
                           </label>
                           <input
                             accept="image/*"
-                            capture="environment"
                             className="field"
                             id={`image-${producto.id}`}
                             name="image"
