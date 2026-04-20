@@ -15,45 +15,52 @@ function getInt(formData: FormData, key: string) {
 
 export async function agregarProductoAction(formData: FormData) {
   const name = getText(formData, "name");
-  const code = getText(formData, "code");
+  const codeRaw = getText(formData, "code");
+  const code = codeRaw || null;
   const quantity = getInt(formData, "quantity");
   const file = formData.get("image");
 
-  if (!name || !code || Number.isNaN(quantity) || quantity < 0) {
+  if (!name || Number.isNaN(quantity) || quantity < 0) {
     redirect("/agregar-producto?error=Datos+invalidos");
-  }
-
-  if (!(file instanceof File) || file.size === 0) {
-    redirect("/agregar-producto?error=La+imagen+es+obligatoria");
   }
 
   const supabase = getSupabaseServerClient();
   const bucket = getStorageBucket();
 
-  const extension = file.name.includes(".")
-    ? file.name.split(".").pop()
-    : file.type.split("/").pop() || "jpg";
-  const safeExt = (extension || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const path = `${crypto.randomUUID()}.${safeExt || "jpg"}`;
-  const fileBuffer = Buffer.from(await file.arrayBuffer());
+  let imageUrl: string | null = null;
 
-  const uploadResult = await supabase.storage.from(bucket).upload(path, fileBuffer, {
-    contentType: file.type || "application/octet-stream",
-    upsert: false,
-  });
+  // 👇 SOLO sube imagen si existe
+  if (file instanceof File && file.size > 0) {
+    const extension = file.name.includes(".")
+      ? file.name.split(".").pop()
+      : file.type.split("/").pop() || "jpg";
 
-  if (uploadResult.error) {
-    redirect("/agregar-producto?error=No+se+pudo+subir+la+imagen");
+    const safeExt = (extension || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const path = `${crypto.randomUUID()}.${safeExt || "jpg"}`;
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+
+    const uploadResult = await supabase.storage.from(bucket).upload(path, fileBuffer, {
+      contentType: file.type || "application/octet-stream",
+      upsert: false,
+    });
+
+    if (uploadResult.error) {
+      redirect("/agregar-producto?error=No+se+pudo+subir+la+imagen");
+    }
+
+    imageUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
   }
 
-  const imageUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+  const insertPayload: any = {
+    name,
+    quantity,
+    ...(code ? { code } : {}),
+    ...(imageUrl ? { image_url: imageUrl } : {}),
+  };
 
-  const insertResult = await supabase
-    .from("products")
-    .insert({ name, code, image_url: imageUrl, quantity });
+  const insertResult = await supabase.from("products").insert(insertPayload);
 
   if (insertResult.error) {
-    await supabase.storage.from(bucket).remove([path]);
     redirect("/agregar-producto?error=No+se+pudo+guardar+el+producto");
   }
 
@@ -124,11 +131,12 @@ export async function guardarMovimientoAction(formData: FormData) {
 export async function actualizarProductoAction(formData: FormData) {
   const productId = getText(formData, "product_id");
   const name = getText(formData, "name");
-  const code = getText(formData, "code");
+  const codeRaw = getText(formData, "code");
+  const code = codeRaw || null;
   const file = formData.get("image");
 
-  if (!productId || !name || !code) {
-    redirect("/?error=Completa+nombre+y+codigo");
+  if (!productId || !name) {
+    redirect("/?error=Completa+el+nombre");
   }
 
   const supabase = getSupabaseServerClient();
@@ -139,6 +147,7 @@ export async function actualizarProductoAction(formData: FormData) {
     const extension = file.name.includes(".")
       ? file.name.split(".").pop()
       : file.type.split("/").pop() || "jpg";
+
     const safeExt = (extension || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
     const path = `${crypto.randomUUID()}.${safeExt || "jpg"}`;
     const fileBuffer = Buffer.from(await file.arrayBuffer());
@@ -155,10 +164,11 @@ export async function actualizarProductoAction(formData: FormData) {
     imageUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
   }
 
-  const updatePayload: { name: string; code: string; image_url?: string } = { name, code };
-  if (imageUrl) {
-    updatePayload.image_url = imageUrl;
-  }
+  const updatePayload: any = {
+    name,
+    ...(code !== null ? { code } : {}),
+    ...(imageUrl ? { image_url: imageUrl } : {}),
+  };
 
   const updateResult = await supabase
     .from("products")
