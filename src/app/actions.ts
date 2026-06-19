@@ -13,6 +13,20 @@ function getInt(formData: FormData, key: string) {
   return Number.isFinite(value) ? Math.trunc(value) : NaN;
 }
 
+type ProductInsertPayload = {
+  name: string;
+  quantity: number;
+  sort_order: number;
+  code?: string;
+  image_url?: string;
+};
+
+type ProductUpdatePayload = {
+  name: string;
+  code?: string;
+  image_url?: string;
+};
+
 export async function agregarProductoAction(formData: FormData) {
   const name = getText(formData, "name");
   const codeRaw = getText(formData, "code");
@@ -26,6 +40,12 @@ export async function agregarProductoAction(formData: FormData) {
 
   const supabase = getSupabaseServerClient();
   const bucket = getStorageBucket();
+  const { data: lastProduct } = await supabase
+    .from("products")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   let imageUrl: string | null = null;
 
@@ -51,9 +71,10 @@ export async function agregarProductoAction(formData: FormData) {
     imageUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
   }
 
-  const insertPayload: any = {
+  const insertPayload: ProductInsertPayload = {
     name,
     quantity,
+    sort_order: (lastProduct?.sort_order ?? -1) + 1,
     ...(code ? { code } : {}),
     ...(imageUrl ? { image_url: imageUrl } : {}),
   };
@@ -164,7 +185,7 @@ export async function actualizarProductoAction(formData: FormData) {
     imageUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
   }
 
-  const updatePayload: any = {
+  const updatePayload: ProductUpdatePayload = {
     name,
     ...(code !== null ? { code } : {}),
     ...(imageUrl ? { image_url: imageUrl } : {}),

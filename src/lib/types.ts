@@ -4,6 +4,7 @@ export type Producto = {
   code: string;
   image_url: string | null;
   quantity: number;
+  sort_order: number;
   created_at: string;
 };
 

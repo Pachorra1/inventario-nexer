@@ -1,11 +1,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { getSupabaseServerClient } from "@/lib/supabaseServer";
-import type { Movimiento, Producto } from "@/lib/types";
-
-type Props = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-};
+import type { Movimiento } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -15,29 +11,15 @@ function resolverNombreProducto(movimiento: Movimiento) {
   return Array.isArray(relacion) ? relacion[0]?.name || "Producto" : relacion.name;
 }
 
-export default async function HistorialPage({ searchParams }: Props) {
-  const params = await searchParams;
-  const selectedProduct = typeof params.product_id === "string" ? params.product_id : "";
+export default async function HistorialPage() {
   const supabase = getSupabaseServerClient();
 
-  const [{ data: productsData }, movementsResponse] = await Promise.all([
-    supabase
-      .from("products")
-      .select("id, name, code, image_url, quantity, created_at")
-      .order("name"),
-    (selectedProduct
-      ? supabase
-          .from("movements")
-          .select("id, product_id, type, quantity, reason, created_at, products(name)")
-          .eq("product_id", selectedProduct)
-      : supabase
-          .from("movements")
-          .select("id, product_id, type, quantity, reason, created_at, products(name)"))
-      .order("created_at", { ascending: false })
-      .limit(50),
-  ]);
+  const movementsResponse = await supabase
+    .from("movements")
+    .select("id, product_id, type, quantity, reason, created_at, products(name)")
+    .order("created_at", { ascending: false })
+    .limit(50);
 
-  const products = (productsData || []) as Producto[];
   const movements = (movementsResponse.data || []) as Movimiento[];
 
   return (
@@ -50,27 +32,6 @@ export default async function HistorialPage({ searchParams }: Props) {
       }
     >
       <main className="space-y-4">
-        <section className="panel p-5 md:p-6">
-          <form action="/historial" className="grid gap-4 md:max-w-md">
-            <div>
-              <label className="label" htmlFor="product_id">
-                Filtrar por producto
-              </label>
-              <select className="field" defaultValue={selectedProduct} id="product_id" name="product_id">
-                <option value="">Todos</option>
-                {products.map((producto) => (
-                  <option key={producto.id} value={producto.id}>
-                    {producto.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button className="btn-primary" type="submit">
-              Ver historial
-            </button>
-          </form>
-        </section>
-
         <section className="panel overflow-hidden">
           <ul className="divide-y divide-[#e6ece9]">
             {movements.length === 0 ? (

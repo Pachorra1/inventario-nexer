@@ -6,12 +6,27 @@ create table if not exists public.products (
   code text not null,
   image_url text,
   quantity integer not null default 0 check (quantity >= 0),
+  sort_order integer not null default 0,
   created_at timestamptz not null default now()
 );
 
 alter table public.products add column if not exists code text;
 update public.products set code = id::text where code is null or btrim(code) = '';
 alter table public.products alter column code set not null;
+alter table public.products add column if not exists sort_order integer not null default 0;
+
+with ordered_products as (
+  select
+    id,
+    row_number() over (order by created_at asc, id asc) - 1 as next_sort_order
+  from public.products
+)
+update public.products as p
+set sort_order = ordered_products.next_sort_order
+from ordered_products
+where p.id = ordered_products.id;
+
+create index if not exists idx_products_sort_order on public.products(sort_order, created_at asc);
 
 create table if not exists public.movements (
   id uuid primary key default gen_random_uuid(),
